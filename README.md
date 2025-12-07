@@ -30,7 +30,7 @@ This project represents a complete evolution of job application automation, feat
 - **Automatic Detection**: Smart API detection for seamless cross-browser operation
 - **Consistent Experience**: Same features and functionality across browsers
 
-### Custom Website Support
+### Custom Website Support (WIP)
 - **Input Detection**: Automatically detects input fields on any job board
 - **Custom Configuration**: Define what questions specific inputs answer
 - **Visual Configuration**: Interactive input selection and mapping
