@@ -47,12 +47,58 @@
                 <label for="roleDescription" class="text-sm font-medium text-muted-foreground">Description</label>
                 <textarea id="roleDescription" placeholder="• Spearheaded the development of a new feature..." v-model="roleDescription" rows="5" class="p-3 text-sm bg-transparent rounded-md border border-input ring-offset-background placeholder:text-muted-foreground/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 resize-none" />
             </div>
+
+            <!-- Document Management Section -->
+            <div class="flex flex-col gap-3">
+                <label class="text-sm font-medium text-muted-foreground">Related Documents</label>
+                <div class="flex gap-3">
+                    <button 
+                        @click="addCoverLetter"
+                        class="flex-1 h-9 px-3 inline-flex items-center justify-center rounded-md text-sm font-medium border border-blue-600 text-blue-600 bg-transparent hover:bg-blue-50 transition-colors"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="currentColor" class="mr-2">
+                            <path d="M320-240h320v-80H320v80Zm0-160h320v-80H320v80ZM240-80q-33 0-56.5-23.5T160-160v-640q0-33 23.5-56.5T240-880h320l240 240v480q0 33-23.5 56.5T720-80H240Zm280-520v-200H240v640h480v-440H520ZM240-800v200-200 640-640Z"/>
+                        </svg>
+                        Add Cover Letter
+                    </button>
+                    <button 
+                        @click="addOtherDocument"
+                        class="flex-1 h-9 px-3 inline-flex items-center justify-center rounded-md text-sm font-medium border border-purple-600 text-purple-600 bg-transparent hover:bg-purple-50 transition-colors"
+                    >
+                        <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="currentColor" class="mr-2">
+                            <path d="M440-440H200v-80h240v-240h80v240h240v80H520v240h-80v-240Z"/>
+                        </svg>
+                        Add Other Document
+                    </button>
+                </div>
+                <p class="text-xs text-gray-500">
+                    Upload cover letters or additional documents related to this work experience
+                </p>
+            </div>
         </main>
 
         <footer class="flex justify-end gap-3 pt-2">
             <button @click="exit" class="h-9 px-4 inline-flex items-center justify-center rounded-md text-sm font-medium border border-border bg-transparent hover:bg-muted">Cancel</button>
             <button @click="saveData" class="h-9 px-4 inline-flex items-center justify-center rounded-md text-sm font-medium text-primary-foreground bg-primary hover:bg-primary/90">{{ saveButtonText }}</button>
         </footer>
+        
+        <!-- Hidden file inputs for document upload -->
+        <input 
+            ref="coverLetterInput"
+            type="file"
+            accept=".pdf,.doc,.docx"
+            style="display: none"
+            @change="handleCoverLetterFile"
+            @cancel="handleFileCancel"
+        />
+        <input 
+            ref="otherDocumentInput"
+            type="file"
+            accept=".pdf,.doc,.docx"
+            style="display: none"
+            @change="handleOtherDocumentFile"
+            @cancel="handleFileCancel"
+        />
     </div>
 </template>
 
@@ -162,6 +208,8 @@ export default {
         // Watch all form fields for changes and auto-save
         watch([jobTitle, jobEmployer, startMonth, startYear, endMonth, endYear, roleDescription], saveDraft);
 
+        // No message listener needed - upload works independently of popup
+
         const exit = () => {
             // Clear draft when canceling
             if (!isEditing.value && chrome.storage) {
@@ -169,6 +217,259 @@ export default {
             }
             emit('close');
         }
+
+        const uploading = ref(false);
+        const coverLetterInput = ref<HTMLInputElement | null>(null);
+        const otherDocumentInput = ref<HTMLInputElement | null>(null);
+
+        const addCoverLetter = () => {
+            console.log('Add Cover Letter button clicked - starting upload');
+            uploading.value = true;
+            
+            const experienceContext = `${jobEmployer.value} - ${jobTitle.value}`.trim() || 'New Experience';
+            console.log('Experience context:', experienceContext);
+            
+            // Send upload request to background script - it will handle everything
+            const message = {
+                type: 'UPLOAD_DOCUMENT',
+                data: {
+                    type: 'cover_letter',
+                    context: experienceContext
+                }
+            };
+            
+            if (typeof browser !== 'undefined' && browser.runtime) {
+                console.log('Using browser API (Firefox)');
+                browser.runtime.sendMessage(message).then((response) => {
+                    console.log('Background script response:', response);
+                    if (response.success) {
+                        console.log('Upload started successfully, popup can close now');
+                        // Reset uploading state after a short delay
+                        setTimeout(() => {
+                            uploading.value = false;
+                        }, 2000);
+                    } else {
+                        console.error('Failed to start upload:', response.error);
+                        uploading.value = false;
+                        alert('Failed to start upload: ' + response.error);
+                    }
+                }).catch((error) => {
+                    console.error('Error sending message to background script:', error);
+                    uploading.value = false;
+                    alert('Error: ' + error.message);
+                });
+            } else if (typeof chrome !== 'undefined' && chrome.runtime) {
+                console.log('Using chrome API (Chrome)');
+                chrome.runtime.sendMessage(message, (response) => {
+                    console.log('Background script response:', response);
+                    if (response.success) {
+                        console.log('Upload started successfully, popup can close now');
+                        // Reset uploading state after a short delay
+                        setTimeout(() => {
+                            uploading.value = false;
+                        }, 2000);
+                    } else {
+                        console.error('Failed to start upload:', response.error);
+                        uploading.value = false;
+                        alert('Failed to start upload: ' + response.error);
+                    }
+                });
+            } else {
+                console.error('No runtime API available');
+                uploading.value = false;
+                alert('Extension runtime not available');
+            }
+        };
+
+        const addOtherDocument = () => {
+            console.log('Add Other Document button clicked - starting upload');
+            uploading.value = true;
+            
+            const experienceContext = `${jobEmployer.value} - ${jobTitle.value}`.trim() || 'New Experience';
+            console.log('Experience context:', experienceContext);
+            
+            // Send upload request to background script - it will handle everything
+            const message = {
+                type: 'UPLOAD_DOCUMENT',
+                data: {
+                    type: 'other',
+                    context: experienceContext
+                }
+            };
+            
+            if (typeof browser !== 'undefined' && browser.runtime) {
+                console.log('Using browser API (Firefox)');
+                browser.runtime.sendMessage(message).then((response) => {
+                    console.log('Background script response:', response);
+                    if (response.success) {
+                        console.log('Upload started successfully, popup can close now');
+                        // Reset uploading state after a short delay
+                        setTimeout(() => {
+                            uploading.value = false;
+                        }, 2000);
+                    } else {
+                        console.error('Failed to start upload:', response.error);
+                        uploading.value = false;
+                        alert('Failed to start upload: ' + response.error);
+                    }
+                }).catch((error) => {
+                    console.error('Error sending message to background script:', error);
+                    uploading.value = false;
+                    alert('Error: ' + error.message);
+                });
+            } else if (typeof chrome !== 'undefined' && chrome.runtime) {
+                console.log('Using chrome API (Chrome)');
+                chrome.runtime.sendMessage(message, (response) => {
+                    console.log('Background script response:', response);
+                    if (response.success) {
+                        console.log('Upload started successfully, popup can close now');
+                        // Reset uploading state after a short delay
+                        setTimeout(() => {
+                            uploading.value = false;
+                        }, 2000);
+                    } else {
+                        console.error('Failed to start upload:', response.error);
+                        uploading.value = false;
+                        alert('Failed to start upload: ' + response.error);
+                    }
+                });
+            } else {
+                console.error('No runtime API available');
+                uploading.value = false;
+                alert('Extension runtime not available');
+            }
+        };
+
+        const handleCoverLetterFile = (event: Event) => {
+            console.log('Cover letter file input change event triggered');
+            const target = event.target as HTMLInputElement;
+            const file = target.files?.[0];
+            if (file) {
+                console.log('File selected:', file.name, file.type, file.size);
+                const experienceContext = `${jobEmployer.value} - ${jobTitle.value}`.trim() || 'New Experience';
+                console.log('Experience context:', experienceContext);
+                uploadDocument(file, 'cover_letter', experienceContext);
+            } else {
+                console.log('No file selected');
+                uploading.value = false;
+            }
+        };
+
+        const handleOtherDocumentFile = (event: Event) => {
+            console.log('Other document file input change event triggered');
+            const target = event.target as HTMLInputElement;
+            const file = target.files?.[0];
+            if (file) {
+                console.log('File selected:', file.name, file.type, file.size);
+                const experienceContext = `${jobEmployer.value} - ${jobTitle.value}`.trim() || 'New Experience';
+                console.log('Experience context:', experienceContext);
+                uploadDocument(file, 'other', experienceContext);
+            } else {
+                console.log('No file selected');
+                uploading.value = false;
+            }
+        };
+
+        const handleFileCancel = () => {
+            console.log('File selection cancelled');
+            uploading.value = false;
+        };
+
+        const uploadDocument = async (file: File, type: 'cover_letter' | 'other', context: string): Promise<void> => {
+            console.log('Starting document upload:', { fileName: file.name, type, context });
+            try {
+                // Validate file
+                const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
+                if (!allowedTypes.includes(file.type)) {
+                    console.log('File type validation failed:', file.type);
+                    alert('Please upload a PDF, DOC, or DOCX file');
+                    return;
+                }
+                
+                if (file.size > 10 * 1024 * 1024) {
+                    console.log('File size validation failed:', file.size);
+                    alert('File size must be less than 10MB');
+                    return;
+                }
+
+                console.log('File validation passed, starting file read');
+                // Read file as base64
+                const reader = new FileReader();
+                reader.onload = async (e) => {
+                    if (!e.target?.result) {
+                        console.log('File read failed - no result');
+                        return;
+                    }
+                    const base64 = (e.target.result as string).split(',')[1];
+                    console.log('File read successfully, base64 length:', base64.length);
+                    
+                    // Store in document manager using proper cross-browser API
+                    let data: { [key: string]: any };
+                    
+                    console.log('Checking storage APIs...');
+                    if (typeof browser !== 'undefined' && browser.storage) {
+                        console.log('Using browser API');
+                        // Use browser API (Promise-based)
+                        data = await browser.storage.local.get('documents');
+                    } else if (typeof chrome !== 'undefined' && chrome.storage) {
+                        console.log('Using Chrome API');
+                        // Use Chrome API (callback-based)
+                        data = await new Promise((resolve) => {
+                            chrome.storage.local.get({ documents: true }, resolve);
+                        });
+                    } else {
+                        console.log('No storage API available');
+                        throw new Error('No storage API available');
+                    }
+                    
+                    console.log('Retrieved existing documents:', data.documents?.length || 0);
+                    const documents = data.documents || [];
+                    
+                    // Create new document with experience context
+                    const newDocument = {
+                        id: Date.now().toString(),
+                        name: file.name,
+                        type: type,
+                        content: base64,
+                        uploadDate: new Date().toISOString(),
+                        size: file.size,
+                        isActive: false,
+                        tags: [context, type === 'cover_letter' ? 'cover-letter' : 'other-document']
+                    };
+                    
+                    console.log('Created new document:', newDocument);
+                    
+                    // Add to documents
+                    documents.push(newDocument);
+                    console.log('Documents count after adding:', documents.length);
+                    
+                    // Save using proper cross-browser API
+                    if (typeof browser !== 'undefined' && browser.storage) {
+                        console.log('Saving with browser API');
+                        await browser.storage.local.set({ documents });
+                    } else if (typeof chrome !== 'undefined' && chrome.storage) {
+                        console.log('Saving with Chrome API');
+                        await new Promise<void>((resolve) => {
+                            chrome.storage.local.set({ documents }, () => resolve());
+                        });
+                    }
+                    
+                    console.log('Document saved successfully');
+                    // Show success message
+                    const documentType = type === 'cover_letter' ? 'Cover letter' : 'Document';
+                    alert(`${documentType} "${file.name}" has been uploaded and tagged with "${context}". You can manage it in the Document Manager.`);
+                    
+                    // Reset uploading state
+                    uploading.value = false;
+                };
+                reader.readAsDataURL(file);
+                
+            } catch (error) {
+                console.error('Failed to upload document:', error);
+                alert('Failed to upload document. Please try again.');
+                uploading.value = false;
+            }
+        };
 
         const saveData = () => {
             const experience = {
@@ -210,7 +511,10 @@ export default {
         return {
             jobTitle, jobEmployer, startMonth, startYear,
             endMonth, endYear, roleDescription, months,
-            exit, saveData, pageTitle, saveButtonText
+            exit, saveData, pageTitle, saveButtonText,
+            addCoverLetter, addOtherDocument, uploading,
+            coverLetterInput, otherDocumentInput,
+            handleCoverLetterFile, handleOtherDocumentFile, handleFileCancel
         };
     },
 };

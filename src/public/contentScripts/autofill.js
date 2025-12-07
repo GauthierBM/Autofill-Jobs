@@ -17,6 +17,8 @@ import {
   fields
 } from "./utils";
 import { workDayAutofill } from './workday';
+// Import custom website autofill
+import './customWebsiteAutofill.js';
 */
 
 let initTime;
@@ -118,7 +120,27 @@ async function autofill(form) {
     for (let jobParam in fields[jobForm]) {
       if (jobParam.toLowerCase() == "resume") {
           let localData = await getStorageDataLocal();
-          if (!localData.Resume) continue;
+          
+          // Try to get active resume from document manager first
+          let resumeContent = null;
+          let resumeName = null;
+          
+          if (localData.documents) {
+            const documents = localData.documents;
+            const activeResume = documents.find(doc => doc.type === 'resume' && doc.isActive);
+            if (activeResume) {
+              resumeContent = activeResume.content;
+              resumeName = activeResume.name;
+            }
+          }
+          
+          // Fallback to old storage if no active resume found
+          if (!resumeContent) {
+            resumeContent = localData.Resume;
+            resumeName = localData.Resume_name;
+          }
+          
+          if (!resumeContent) continue;
 
           let resumeDiv = {
             greenhouse: 'input[id="resume"]',
@@ -137,10 +159,10 @@ async function autofill(form) {
           });
           
           const dt = new DataTransfer();
-          let arrBfr = base64ToArrayBuffer(localData.Resume);
+          let arrBfr = base64ToArrayBuffer(resumeContent);
 
           dt.items.add(
-            new File([arrBfr], `${localData["Resume_name"]}`, {
+            new File([arrBfr], `${resumeName}`, {
               type: "application/pdf",
             })
           );
@@ -175,6 +197,41 @@ async function autofill(form) {
     }
     console.log(`Autofill Jobs: Complete in ${getTimeElapsed(initTime)}s.`);
     break; //found site
+  }
+  
+  // If no supported site was found, try custom website configurations
+  if (foundSite === false && window.customWebsiteAutofill) {
+    console.log("No supported site found, trying custom website configurations...");
+    
+    // Wait a bit for custom website autofill to load
+    setTimeout(async () => {
+      try {
+        const storageAPI = typeof browser !== 'undefined' && browser.storage ? browser.storage : chrome.storage;
+        const data = await storageAPI.local.get(null);
+        
+        // Get active resume from document manager
+        const documents = data.documents || [];
+        const activeResume = documents.find(doc => doc.type === 'resume' && doc.isActive);
+        
+        if (activeResume) {
+          // Add active resume data to the data object for autofill
+          data['Resume'] = activeResume.content;
+          data['Resume_name'] = activeResume.name;
+        }
+        
+        if (window.customWebsiteAutofill.isSupportedDomain()) {
+          console.log("Found custom website configuration for current domain");
+          const success = await window.customWebsiteAutofill.autofillForm(data);
+          if (success) {
+            console.log("Custom website autofill completed successfully");
+          }
+        } else {
+          console.log("No custom website configuration found for current domain");
+        }
+      } catch (error) {
+        console.error("Custom website autofill failed:", error);
+      }
+    }, 1000);
   }
   
 }

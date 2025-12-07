@@ -43,10 +43,12 @@
 </template>
 
 <script lang="ts">
-import { ref, watch } from 'vue';
-import { usePrivacy } from '@/composables/Privacy';
+import { ref, watch, onMounted } from 'vue';
 import { useExplanation } from '@/composables/Explanation.ts';
-import { useResumeDetails } from '@/composables/ResumeDetails';
+import { useResumeDetails } from '@/composables/ResumeDetails.ts';
+import { useDocuments } from '@/composables/Documents.ts';
+import { usePrivacy } from '@/composables/Privacy.ts';
+
 export default {
   props: ['label', 'placeHolder', 'explanation'],
   data() {
@@ -64,6 +66,7 @@ export default {
     const hidden = ref('text');
     const { toggleExplanation, setExplanation } = useExplanation();
     const { loadDetails } = useResumeDetails();
+    const { getActiveDocument } = useDocuments();
     watch(privacy, (newVal) => {
       hidden.value = newVal ? 'password' : 'text';
     });
@@ -76,69 +79,97 @@ export default {
     const saveResume = (event: Event) => {
       const file = (event.target as HTMLInputElement).files?.[0];
       if (file) {
+        // For now, keep the old behavior but suggest using document manager
+        alert('For better document management, please use the Document Manager feature instead of uploading here.');
+        
         const reader = new FileReader();
         reader.onload = function (e) {
           if (!e.target?.result) return;
           const b64 = (e.target.result as string).split(',')[1];
-          chrome.storage.local.set({ [`${props.label + '_name'}`]: file.name }, () => {
+          const storageAPI = typeof browser !== 'undefined' && browser.storage ? browser.storage : chrome.storage;
+          storageAPI.local.set({ [`${props.label + '_name'}`]: file.name }, () => {
             inputValue.value = file.name
             console.log(`${props.label} + _name saved:`, file.name);
           });
-          chrome.storage.local.set({ [props.label]: b64 }, () => {
+          storageAPI.local.set({ [props.label]: b64 }, () => {
             console.log(`${props.label} saved:`, b64);
           });
 
-          chrome.storage.sync.get('API Key', (key) => {
-            key = key['API Key']
-            if (key) {
-              //parse resume, return skills
-              fetch(
-                `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${key}`,
-                {
-                  method: "POST",
-                  headers: {
-                    "Content-Type": "application/json",
-                  },
-                  body: JSON.stringify({
-
-                    contents: [
-                      {
-                        parts: [
-                          {
-                            text: `Parse this resume (skills section as a single array as a string, no subarrays. Work experience json follows this format experiences:[{jobTitle: ,jobEmployer: ,jobDuration: 'mm/yy-mm/yy', isCurrentEmployer: , roleBulletsString: }]. Return parsed data as {skills:[],experiences:}. Ensure type correctness and make sure skills has 0 subarrays(example: ['AWS','Java']). `,
-                          },
-                          {
-                            'inline_data': {
-                              data: b64,
-                              'mime_type': 'application/pdf',
-                            }
-                          }
-                        ]
-                      },
-                    ]
-
-
-                  })
-                }
-
-              ).then((response) => response.json())
-                .then((json) => {
-                  console.log(json);
-                  let res = json.candidates[0].content.parts[0].text;
-                  res = res.replace(/```json/, "").replace(/```/, "").replace('\n', " ").trim();
-                  chrome.storage.local.set({ [`${props.label + '_details'}`]: res }, () => {
-                    console.log(`${props.label} saved:`, res);
-                    loadDetails(); //pass details over to others
-                  });
-
-                }).catch(e => {
-                  console.error(e);
-                });
-            }
-          });
+          // Process with AI if API key is available
+          processResumeWithAI(b64);
         };
         reader.readAsDataURL(file);
       }
+    };
+
+    const processResumeWithAI = (b64: string) => {
+      if (typeof browser !== 'undefined' && browser.storage) {
+        // Use browser API (Promise-based)
+        browser.storage.sync.get('API Key').then((key: { [key: string]: any }) => {
+          const apiKey = key['API Key'];
+          if (apiKey) {
+            processWithAPI(apiKey, b64);
+          }
+        });
+      } else if (typeof chrome !== 'undefined' && chrome.storage) {
+        // Use Chrome API (callback-based)
+        chrome.storage.sync.get('API Key', (key: { [key: string]: any }) => {
+          const apiKey = key['API Key'];
+          if (apiKey) {
+            processWithAPI(apiKey, b64);
+          }
+        });
+      }
+    };
+
+    const processWithAPI = (apiKey: string, b64: string) => {
+      //parse resume, return skills
+      fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            contents: [
+              {
+                parts: [
+                  {
+                    text: `Parse this resume (skills section as a single array as a string, no subarrays. Work experience json follows this format experiences:[{jobTitle: ,jobEmployer: ,jobDuration: 'mm/yy-mm/yy', isCurrentEmployer: , roleBulletsString: }]. Return parsed data as {skills:[],experiences:}. Ensure type correctness and make sure skills has 0 subarrays(example: ['AWS','Java']). `,
+                  },
+                  {
+                    'inline_data': {
+                      data: b64,
+                      'mime_type': 'application/pdf',
+                    }
+                  }
+                ]
+              }
+            ]
+          })
+        }
+      ).then(res => res.json())
+        .then(data => {
+          const parsed = JSON.parse(data.candidates[0].content.parts[0].text);
+          console.log(parsed);
+          //save skills
+          const storageAPI = typeof browser !== 'undefined' && browser.storage ? browser.storage : chrome.storage;
+          if (typeof browser !== 'undefined' && browser.storage) {
+            browser.storage.local.set({ 'Skills': parsed.skills });
+          } else if (typeof chrome !== 'undefined' && chrome.storage) {
+            chrome.storage.local.set({ 'Skills': parsed.skills });
+          }
+          //save work experience
+          if (typeof browser !== 'undefined' && browser.storage) {
+            browser.storage.local.set({ 'Work Experience': parsed.experiences });
+          } else if (typeof chrome !== 'undefined' && chrome.storage) {
+            chrome.storage.local.set({ 'Work Experience': parsed.experiences });
+          }
+        })
+        .catch(err => {
+          console.error(err);
+        })
     };
     const saveData = () => {
       // Store the value of the input field in chrome storage

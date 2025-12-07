@@ -19,7 +19,11 @@ const savedAnswers = ref<AnswerCluster[]>([]);
 
 export function useSavedAnswers() {
   const loadAnswers = async () => {
-    if (chrome.storage) {
+    if (typeof browser !== 'undefined' && browser.storage) {
+      const data = await browser.storage.local.get('saved_answers');
+      const clusters: AnswerCluster[] = data.saved_answers || [];
+      
+    } else if (typeof chrome !== 'undefined' && chrome.storage) { // Fallback to Chrome
       const data = await chrome.storage.local.get('saved_answers');
       const clusters: AnswerCluster[] = data.saved_answers || [];
       
@@ -60,7 +64,9 @@ export function useSavedAnswers() {
 
   const deleteAnswer = async (clusterId: string) => {
     const updatedClusters = savedAnswers.value.filter(c => c.id !== clusterId);
-    if (chrome.storage) {
+    if (typeof browser !== 'undefined' && browser.storage) {
+      await browser.storage.local.set({ saved_answers: updatedClusters });
+    } else if (typeof chrome !== 'undefined' && chrome.storage) {
       await chrome.storage.local.set({ saved_answers: updatedClusters });
     }
     savedAnswers.value = updatedClusters;
@@ -70,7 +76,9 @@ export function useSavedAnswers() {
     const updatedClusters = savedAnswers.value.map(c => 
       c.id === clusterId ? { ...c, answer: updatedData.answer } : c
     );
-    if (chrome.storage) {
+    if (typeof browser !== 'undefined' && browser.storage) {
+      await browser.storage.local.set({ saved_answers: updatedClusters });
+    } else if (typeof chrome !== 'undefined' && chrome.storage) {
       await chrome.storage.local.set({ saved_answers: updatedClusters });
     }
     savedAnswers.value = updatedClusters;
@@ -91,7 +99,9 @@ export function useSavedAnswers() {
       );
     }
     
-    if (chrome.storage) {
+    if (typeof browser !== 'undefined' && browser.storage) {
+      await browser.storage.local.set({ saved_answers: updatedClusters });
+    } else if (typeof chrome !== 'undefined' && chrome.storage) {
       await chrome.storage.local.set({ saved_answers: updatedClusters });
     }
     savedAnswers.value = updatedClusters;

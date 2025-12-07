@@ -219,30 +219,32 @@ Scroll to top of window.
   return ((cur - startTime) / 1000).toFixed(3);
 }
 /**
- Data retreival for chrome local storage.
+ Data retreival for browser local storage (cross-browser compatible).
  */
  const getStorageDataLocal = (key) => {
   return new Promise((resolve) => {
+    const storageAPI = typeof browser !== 'undefined' && browser.storage ? browser.storage : chrome.storage;
     if (key === undefined) {
       // If no key is passed, fetch all data
-      chrome.storage.local.get(null, resolve);
+      storageAPI.local.get(null, resolve);
     } else {
       // If a key is passed, fetch only the value for that key
-      chrome.storage.local.get(key, resolve);
+      storageAPI.local.get(key, resolve);
     }
   });
 };
 /**
- Data retreival for chrome sync storage.
+ Data retreival for browser sync storage (cross-browser compatible).
  */
  const getStorageDataSync = (key) => {
   return new Promise((resolve) => {
+    const storageAPI = typeof browser !== 'undefined' && browser.storage ? browser.storage : chrome.storage;
     if (key === undefined) {
       // If no key is passed, fetch all data
-      chrome.storage.sync.get(null, resolve);
+      storageAPI.sync.get(null, resolve);
     } else {
       // If a key is passed, fetch only the value for that key
-      chrome.storage.sync.get(key, resolve);
+      storageAPI.sync.get(key, resolve);
     }
   });
 };

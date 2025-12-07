@@ -305,7 +305,8 @@ if (worker) {
                                 question, sourceUrl, embedding, timestamp: new Date().toISOString(),
                             });
                             console.log('💾 Semantic Autofill: Added new question variant to existing cluster:', cluster.id);
-                            await chrome.storage.local.set({ saved_answers: savedAnswerClusters });
+                            const storageAPI = typeof browser !== 'undefined' && browser.storage ? browser.storage : chrome.storage;
+                            await storageAPI.local.set({ saved_answers: savedAnswerClusters });
                         }
                     }
                 } 
@@ -352,7 +353,8 @@ if (worker) {
                                 cluster.answer = answer;
                             }
                             
-                            await chrome.storage.local.set({ saved_answers: savedAnswerClusters });
+                            const storageAPI = typeof browser !== 'undefined' && browser.storage ? browser.storage : chrome.storage;
+                            await storageAPI.local.set({ saved_answers: savedAnswerClusters });
                         }
                     } 
                     // Otherwise, this is a new topic. Create a new cluster.
@@ -367,7 +369,8 @@ if (worker) {
                             }],
                         };
                         console.log('💾 Semantic Autofill: Saving new answer cluster:', newCluster);
-                        await chrome.storage.local.set({ saved_answers: [...savedAnswerClusters, newCluster] });
+                        const storageAPI = typeof browser !== 'undefined' && browser.storage ? browser.storage : chrome.storage;
+                        await storageAPI.local.set({ saved_answers: [...savedAnswerClusters, newCluster] });
                     }
                 }
                 pendingEmbeddings.delete(id);
@@ -386,7 +389,8 @@ if (worker) {
 }
 
 const getSavedAnswers = async () => {
-    const data = await chrome.storage.local.get('saved_answers');
+    const storageAPI = typeof browser !== 'undefined' && browser.storage ? browser.storage : chrome.storage;
+    const data = await storageAPI.local.get('saved_answers');
     return data.saved_answers || [];
 };
 
@@ -433,7 +437,8 @@ async function saveNewQuestionAnswerPairWithoutEmbedding(question, answer) {
                 cluster.answer = answer;
             }
             
-            await chrome.storage.local.set({ saved_answers: savedAnswerClusters });
+            const storageAPI = typeof browser !== 'undefined' && browser.storage ? browser.storage : chrome.storage;
+            await storageAPI.local.set({ saved_answers: savedAnswerClusters });
             return;
         }
     }
@@ -451,7 +456,8 @@ async function saveNewQuestionAnswerPairWithoutEmbedding(question, answer) {
         }],
     };
     console.log('💾 Semantic Autofill: Saving new answer cluster:', newCluster);
-    await chrome.storage.local.set({ saved_answers: [...savedAnswerClusters, newCluster] });
+    const storageAPI = typeof browser !== 'undefined' && browser.storage ? browser.storage : chrome.storage;
+    await storageAPI.local.set({ saved_answers: [...savedAnswerClusters, newCluster] });
 }
 
 async function addQuestionToCluster(question, suggestedClusterId) {
@@ -475,7 +481,8 @@ async function addQuestionToCluster(question, suggestedClusterId) {
                 timestamp: new Date().toISOString(),
             });
             console.log('💾 Semantic Autofill: Added new question variant to existing cluster:', cluster.id);
-            await chrome.storage.local.set({ saved_answers: savedAnswerClusters });
+            const storageAPI = typeof browser !== 'undefined' && browser.storage ? browser.storage : chrome.storage;
+            await storageAPI.local.set({ saved_answers: savedAnswerClusters });
         }
     }
 }

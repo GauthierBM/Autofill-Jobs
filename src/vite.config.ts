@@ -17,6 +17,22 @@ export default defineConfig({
         {
           src: 'node_modules/@xenova/transformers/dist/ort-wasm-simd-threaded.wasm',
           dest: '.'
+        },
+        {
+          src: '../standalone.html',
+          dest: '.'
+        },
+        {
+          src: '../standalone.js',
+          dest: '.'
+        },
+        {
+          src: '../src/public/background.js',
+          dest: '.'
+        },
+        {
+          src: '../src/public/file-upload.html',
+          dest: '.'
         }
       ]
     })
