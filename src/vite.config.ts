@@ -9,7 +9,14 @@ import { viteStaticCopy } from 'vite-plugin-static-copy'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
-    vue(),
+    vue({
+      template: {
+        compilerOptions: {
+          isCustomElement: (tag) => tag.includes('-'),
+          whitespace: 'condense'
+        }
+      }
+    }),
     vueJsx(),
     vueDevTools(),
     viteStaticCopy({
@@ -33,6 +40,26 @@ export default defineConfig({
         {
           src: '../src/public/file-upload.html',
           dest: '.'
+        },
+        {
+          src: '../src/public/file-upload.js',
+          dest: '.'
+        },
+        {
+          src: '../src/public/manifest.json',
+          dest: '.'
+        },
+        {
+          src: '../src/public/contentScripts/**/*',
+          dest: 'contentScripts'
+        },
+        {
+          src: '../src/public/icons/**/*',
+          dest: 'icons'
+        },
+        {
+          src: '../src/public/workers/**/*',
+          dest: 'workers'
         }
       ]
     })

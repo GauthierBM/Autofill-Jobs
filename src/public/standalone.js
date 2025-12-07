@@ -19,38 +19,62 @@ function loadExtension() {
         showError('Failed to load extension. Please make sure the extension is properly installed.');
     };
     
-    appContent.innerHTML = '';
+    // Clear existing content safely
+    while (appContent.firstChild) {
+        appContent.removeChild(appContent.firstChild);
+    }
     appContent.appendChild(iframe);
 }
 
 function showError(message) {
     const appContent = document.getElementById('app-content');
-    appContent.innerHTML = `
-        <div class="error">
-            <div>
-                <div class="error-icon">⚠️</div>
-                <h3>Loading Error</h3>
-                <p>${message}</p>
-                <button id="retry-button" style="
-                    margin-top: 16px;
-                    padding: 8px 16px;
-                    background: #3b82f6;
-                    color: white;
-                    border: none;
-                    border-radius: 4px;
-                    cursor: pointer;
-                ">Try Again</button>
-            </div>
-        </div>
+    
+    // Clear existing content
+    while (appContent.firstChild) {
+        appContent.removeChild(appContent.firstChild);
+    }
+    
+    // Create error elements safely
+    const errorDiv = document.createElement('div');
+    errorDiv.className = 'error';
+    
+    const innerDiv = document.createElement('div');
+    
+    const errorIcon = document.createElement('div');
+    errorIcon.className = 'error-icon';
+    errorIcon.textContent = '⚠️';
+    
+    const title = document.createElement('h3');
+    title.textContent = 'Loading Error';
+    
+    const paragraph = document.createElement('p');
+    paragraph.textContent = message;
+    
+    const retryButton = document.createElement('button');
+    retryButton.id = 'retry-button';
+    retryButton.textContent = 'Try Again';
+    retryButton.style.cssText = `
+        margin-top: 16px;
+        padding: 8px 16px;
+        background: #3b82f6;
+        color: white;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
     `;
     
+    // Assemble the error message
+    innerDiv.appendChild(errorIcon);
+    innerDiv.appendChild(title);
+    innerDiv.appendChild(paragraph);
+    innerDiv.appendChild(retryButton);
+    errorDiv.appendChild(innerDiv);
+    appContent.appendChild(errorDiv);
+    
     // Add event listener for retry button
-    const retryButton = document.getElementById('retry-button');
-    if (retryButton) {
-        retryButton.addEventListener('click', function() {
-            location.reload();
-        });
-    }
+    retryButton.addEventListener('click', function() {
+        location.reload();
+    });
 }
 
 // Load the extension when the page loads

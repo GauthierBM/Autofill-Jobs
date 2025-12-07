@@ -72,7 +72,22 @@
   "browser_specific_settings": {
     "gecko": {
       "id": "autofill-jobs@example.com",
-      "strict_min_version": "109.0"
+      "strict_min_version": "142.0",
+      "data_collection_permissions": {
+        "required": ["none"],
+        "personallyIdentifyingInfo": false,
+        "healthInfo": false,
+        "financialAndPaymentInfo": false,
+        "authenticationInfo": false,
+        "personalCommunications": false,
+        "locationInfo": false,
+        "browsingActivity": false,
+        "websiteContent": false,
+        "websiteActivity": false,
+        "searchTerms": false,
+        "bookmarksInfo": false,
+        "technicalAndInteraction": false
+      }
     }
   }
 }
